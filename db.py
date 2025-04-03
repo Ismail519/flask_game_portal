@@ -43,6 +43,7 @@ class Posts(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     title = db.Column(db.Text, nullable=False)
     url = db.Column(db.Text, nullable=False)
+    cover = db.Column(db.Text, nullable=False)
     text = db.Column(db.Text, nullable=False)
     time = db.Column(db.Integer, nullable=False, default=datetime.utcnow)  # Добавлено поле времени
 
@@ -122,6 +123,7 @@ class Comments(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     game_id = db.Column(db.Integer, db.ForeignKey('games.id', ondelete='CASCADE'), nullable=False)
+    post_id = db.Column(db.Integer, db.ForeignKey('posts.id', ondelete='CASCADE'), nullable=False)
     parent_id = db.Column(db.Integer, db.ForeignKey('comments.id', ondelete='CASCADE'), nullable=True)
 
     text = db.Column(db.Text, nullable=False)
@@ -131,6 +133,7 @@ class Comments(db.Model):
     # Добавляем passive_deletes=True
     user = db.relationship('Users', passive_deletes=True)
     game = db.relationship('Games', backref=db.backref('comments', lazy=True, cascade="all, delete"))
+    post = db.relationship('Posts', backref=db.backref('comments', lazy=True, cascade="all, delete"))
     parent = db.relationship('Comments', remote_side=[id],
                              backref=db.backref('replies', lazy=True, cascade="all, delete"))
 

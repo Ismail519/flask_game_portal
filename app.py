@@ -27,8 +27,8 @@ app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(app.root_path,
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = SECRET_KEY
 
-app.config['RECAPTCHA_PUBLIC_KEY'] = '6LdFw-MqAAAAAGIjhuO3UTNYU6gArOpYEbpF3Xb4'
-app.config['RECAPTCHA_PRIVATE_KEY'] = '6LdFw-MqAAAAAIQvr_MjNveev2woBtY-uUkDTDjv'
+app.config['RECAPTCHA_PUBLIC_KEY'] = '6LfkKAkrAAAAAEqSeRbCw6kAHSNB6caJUpUZrOIH'
+app.config['RECAPTCHA_PRIVATE_KEY'] = '6LfkKAkrAAAAAC9kB8p565TGJJTPhYHv5D9XqqSg'
 app.config['RECAPTCHA_OPTIONS'] = {'theme': 'light'}
 
 app.app_context().push()
