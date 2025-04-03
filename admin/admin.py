@@ -18,6 +18,7 @@ import hashlib
 admin = Blueprint('admin', __name__, template_folder='templates', static_folder='static')
 
 menu = [{'url': '.index', 'title': 'Панель'},
+        {'url': '.list_pubs', 'title': 'Список постов'},
         {'url': '.list_users', 'title': 'Список пользователей'},
         {'url': '.list_games', 'title': 'Список игр'},
         {'url': '.list_menu', 'title': 'Пункты меню'},
@@ -184,18 +185,129 @@ def logout():
 def list_pubs():
     if not isLogged():
         return redirect(url_for('.login'))
-    try:
-        list = Posts.query.all()
-    except Exception as e:
-        flash(f'Оштбка получения статей: {str(e)}', 'error')
-        list = []
-    return render_template('admin/list_pubs.html', title='Список статей', menu=menu, list=list)
 
-#-----------------------------------------------------------------------------------------------------------------
-"""
-                            Маршрут страницы СПИСКА ПОЛЬЗОВАТЕЛЕЙ в Панели администратора 
-"""
-#-----------------------------------------------------------------------------------------------------------------
+    try:
+        # Получаем параметры запроса
+        search = request.args.get('search', '').strip()
+        sort = request.args.get('sort', 'time_desc')  # По умолчанию сортировка по дате убывания
+        filter_type = request.args.get('type', '')  # Фильтр по типу игры
+        filter_genre = request.args.get('genre', '')# Фильтр по жанру
+        # Базовый запрос
+        query = Posts.query
+        # Поиск по названию или описанию
+        if search:
+            query = query.filter(
+                (Posts.title.ilike(f'%{search}%')) |
+                (Posts.description.ilike(f'%{search}%'))
+            )
+        # Фильтрация по типу игры
+        if filter_type:
+            query = query.filter(Posts.type == filter_type)
+        # Сортировка
+        if filter_genre:
+            query = query.filter(Posts.genre == filter_genre)
+        if sort == 'title_asc':
+            query = query.order_by(asc(Posts.title))
+        elif sort == 'title_desc':
+            query = query.order_by(desc(Posts.title))
+        elif sort == 'time_asc':
+            query = query.order_by(asc(Posts.time))
+        elif sort == 'time_desc':
+            query = query.order_by(desc(Posts.time))
+        else:
+            query = query.order_by(desc(Posts.time))  # По умолчанию
+
+        posts = query.all()
+    except Exception as e:
+        flash(f'Ошибка получения списка постов: {str(e)}', 'error')
+        posts = []
+
+    return render_template('admin/list_pubs.html', title='Список постов', menu=menu, posts=posts, search=search, sort=sort)
+
+@admin.route('/add_post', methods=['POST', 'GET'])
+def add_post():
+    if not isLogged():
+        return redirect(url_for('.login'))
+    if request.method == 'POST':
+        title = request.form.get('title')
+        text = request.form.get('text')
+        cover_file = request.files.get('cover')
+
+        if not title or not text or not cover_file:
+            flash('Все поля должны быть заполнены', 'error')
+        else:
+            try:
+                url = secure_filename(title.lower().replace(' ', '-'))
+                existing_post = Posts.query.filter_by(url=url).first()
+                if existing_post:
+                    url = f"{url}-{int(datetime.now().timestamp())}"
+
+                if Posts.query.filter_by(title=title).first():
+                    flash('Пост с таким названием уже существует', 'error')
+
+                    return render_template('admin/add_post.html', menu=menu, title='Добавить пост')
+                cover_data = cover_file.read()
+                new_post = Posts(title=title, url=url, text=text, cover=cover_data, time=int(datetime.now().timestamp()))
+                db.session.add(new_post)
+                db.session.commit()
+                flash('Пост успешно добавлен', 'success')
+                return redirect(url_for('.list_pubs'))
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Ошибка добавления поста: {str(e)}', 'error')
+    return render_template('admin/add_post.html', menu=menu, title='Добавить пост')
+
+@admin.route('/edit_post/<int:post_id>', methods=["POST", "GET"])
+def edit_post(post_id):
+    if not isLogged():
+        return redirect(url_for('.login'))
+    post = Posts.query.get_or_404(post_id)
+
+    if request.method == "POST":
+        title = request.form.get('title')
+        text = request.form.get('text')
+        cover_file = request.files.get('cover')
+
+        if not title or not text:
+            flash('Все поля должны быть заполнены', 'error')
+        else:
+            try:
+                new_url= secure_filename(title.lower().replace(' ', '-'))
+                existing_post_with_url = Posts.query.filter_by(url=new_url).first()
+                if existing_post_with_url and existing_post_with_url.id != post_id:
+                    flash('Пост с таким названием уже существует', 'error')
+                    return render_template('admin/edit_post.html', menu=menu, title='Редактировать пост')
+
+                post.title = title
+                post.url = new_url
+                post.text = text
+                cover_data = cover_file.read()
+                post.cover = cover_data
+                db.session.commit()
+                flash("Пост успешно обновлен", "success")
+                return redirect(url_for('.list_pubs'))
+            except Exception as e:
+                db.session.rollback()
+                flash(f"Ошибка обновления поста: {str(e)}", "error")
+
+
+    return render_template('admin/edit_post.html', menu=menu, title="Редактировать пост", post=post)
+
+@admin.route('/delete-post/<int:post_id>', methods=['POST', "GET"])
+def delete_post(post_id):
+    if not isLogged():
+        return redirect(url_for('.login'))
+    try:
+            post = Posts.query.get_or_404(post_id)
+            db.session.delete(post)
+            db.session.commit()
+            flash('Пост успешно удален', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ошибка удаления поста: {str(e)}', 'error')
+    return redirect(url_for('.list_pubs'))
+
+
 @admin.route('/list_users')
 def list_users():
     if not isLogged():
