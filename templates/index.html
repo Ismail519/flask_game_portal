@@ -12,6 +12,21 @@
 <p>Запускайте игры прямо в браузере! Наши игры разработаны на pygame.</p>
 
  <img src="static/images/gamepad.png" alt="Геймпад" style="max-width: 50%;margin: 0 auto; display: block;">
+
+<h2>Наши посты</h2>
+<div class="cards-container">
+    {% for post in posts %}
+    <a href="{{ url_for('showPost', post_id=post.id) }}" class="post-card">
+        {% if post.cover %}
+        <div class="post-cover">
+            <img src="data:image/jpeg;base64,{{ post.cover|b64encode }}" alt="{{ post.title }}">
+        </div>
+        {% endif %}
+        <div class="post-title">{{ post.title }}</div>
+    </a>
+    {% endfor %}
+</div>
+
 <h2> Наши игры</h2>
 <div class="cards-container">
              {% for game in games %}
