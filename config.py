@@ -6,7 +6,7 @@ MAIL_CONFIG ={
 'MAIL_PASSWORD' : 'walujiiouhfrbmqx',
 'MAIL_DEFAULT_SENDER' : 'tanrusta.a.g@gmail.com'
 }
-
+#wc
 GENRES = (
     '🔫Экшн',
     '🌏Приключения',

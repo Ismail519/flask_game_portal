@@ -21,7 +21,7 @@ import logging
                                              Конфигурация Сайта
 """
 #-----------------------------------------------------------------------------------------------------------------
-
+#cwcw
 SECRET_KEY = '43fswQtodqAAAAAaLYQVnaNOyAwmqeOqWsGPvweqe'
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(app.root_path, 'flask.db')}"

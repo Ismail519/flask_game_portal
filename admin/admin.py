@@ -12,7 +12,7 @@ import hmac
 import hashlib
 from config import GENRES
 from flask_mail import Message
-
+#
 admin = Blueprint('admin', __name__, template_folder='templates', static_folder='static')
 
 menu = [{'url': '.index', 'title': 'Панель'},
