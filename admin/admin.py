@@ -1,14 +1,18 @@
 import shutil
 import zipfile
+import base64
 from flask import Blueprint, render_template, url_for, redirect, session, request, flash, g
 from werkzeug.utils import secure_filename
 import os
-from db import db, Posts, Users, Games, MainMenu,Comments, CommentLikes
+from db import *
 from datetime import datetime, timedelta
 from sqlalchemy import func, asc, desc
 from git import Repo
 import hmac
 import hashlib
+from config import GENRES
+from flask_mail import Message
+
 
 #-----------------------------------------------------------------------------------------------------------------
 """
@@ -26,7 +30,7 @@ menu = [{'url': '.index', 'title': 'Панель'},
 
 SECRET_KEY = '43fswQtodqAAAAAaLYQVnaNOyAwmqeOqWsGPvweqe'
 
-GENRES = ('🔫Экшн', '🌏Приключения', '🧙‍♂️RPG', '📈Стратегия', '💼Симулятор', '⚽Спорт', '🗿Головоломка', '🏃‍♂️Платформер',  'Другое')
+
 def isLogged():
     return True if session.get('admin_logged') else False
 def login_admin():
@@ -226,6 +230,7 @@ def list_pubs():
 
 @admin.route('/add_post', methods=['POST', 'GET'])
 def add_post():
+    from app import mail
     if not isLogged():
         return redirect(url_for('.login'))
     if request.method == 'POST':
@@ -250,6 +255,28 @@ def add_post():
                 new_post = Posts(title=title, url=url, text=text, cover=cover_data, time=int(datetime.now().timestamp()))
                 db.session.add(new_post)
                 db.session.commit()
+
+                # Отправка уведомлений всем зарегистрированным пользователям
+                users = Users.query.filter_by(is_active=True).all()
+                post_url = url_for('showPost', post_id=new_post.id, _external=True)
+                cover_b64 = base64.b64encode(cover_data).decode('utf-8')
+                for user in users:
+                    msg = Message(
+                        subject=f"Новый пост: {title}",
+                        recipients=[user.email]
+                    )
+                    msg.html = render_template(
+                        'email/post_notification.html',
+                        post_title=title,
+                        post_text=text[:200] + ('...' if len(text) > 200 else ''),
+                        post_url=post_url,
+                        cover_b64=cover_b64
+                    )
+                    try:
+                        mail.send(msg)
+                    except Exception as e:
+                        flash(f"Ошибка отправки письма пользователю {user.email}: {str(e)}", "error")
+
                 flash('Пост успешно добавлен', 'success')
                 return redirect(url_for('.list_pubs'))
             except Exception as e:
@@ -299,6 +326,7 @@ def delete_post(post_id):
         return redirect(url_for('.login'))
     try:
             post = Posts.query.get_or_404(post_id)
+            Comments.query.filter_by(post_id=post_id).delete()
             db.session.delete(post)
             db.session.commit()
             flash('Пост успешно удален', 'success')
@@ -444,6 +472,7 @@ def add_menu():
 # -----------------------------------------------------------------------------------------------------------------
 @admin.route('/add_game', methods=['POST', 'GET'])
 def add_game():
+    from app import mail
     if not isLogged():
         return redirect(url_for('.login'))
     if request.method == 'POST':
@@ -544,6 +573,29 @@ def add_game():
 
                 db.session.add(new_game)
                 db.session.commit()
+                # Отправка уведомлений всем зарегистрированным пользователям
+                users = Users.query.filter_by(is_active=True).all()
+                game_url = url_for('game', game_id=new_game.id, _external=True)
+                cover_b64 = base64.b64encode(cover_data).decode('utf-8')
+                for user in users:
+                    msg = Message(
+                        subject=f"Новая игра: {title}",
+                        recipients=[user.email]
+                    )
+                    msg.html = render_template(
+                        'email/game_notification.html',
+                        game_title=title,
+                        game_description=description[:200] + ('...' if len(description) > 200 else ''),
+                        game_url=game_url,
+                        cover_b64=cover_b64,
+                        genre=genre
+                    )
+                    try:
+                        mail.send(msg)
+                    except Exception as e:
+                        flash(f"Ошибка отправки письма пользователю {user.email}: {str(e)}", "error")
+
+
                 flash('Игра успешно добавлена', 'success')
                 return redirect(url_for('.list_games'))
             except Exception as e:
@@ -723,11 +775,11 @@ def delete_user(user_id):
     try:
         user = Users.query.get(user_id)
         if user:
-            # Удаляем все комментарии пользователя
+
             Comments.query.filter_by(user_id=user.id).delete()
-            # Удаляем все лайки пользователя
             CommentLikes.query.filter_by(user_id=user.id).delete()
-            # Удаляем самого пользователя
+            Favorites.query.filter_by(user_id=user.id).delete()
+            GameStats.query.filter_by(user_id=user.id).delete()
             db.session.delete(user)
             db.session.commit()
             flash('Пользователь успешно удален', 'success')
@@ -761,7 +813,9 @@ def delete_game(game_id):
                     flash(f'Папка игры {game_folder} удалена', 'success')
                 else:
                     flash(f'Папка игры {game_folder} не найдена', 'error')
-
+            Comments.query.filter_by(game_id=game_id).delete()
+            Favorites.query.filter_by(game_id=game_id).delete()
+            GameStats.query.filter_by(game_id=game_id).delete()
             db.session.delete(game)
             db.session.commit()
             flash('Игра успешно удалена', 'success')
