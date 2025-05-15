@@ -7,7 +7,7 @@ from sqlite3 import Connection as SQLite3Connection
 db = SQLAlchemy()
 
 def init_app(app):
-
+    """Initialize the database with the Flask app and enable foreign keys for SQLite."""
     db.init_app(app)
     with app.app_context():
         @event.listens_for(db.engine, "connect")
@@ -34,7 +34,7 @@ class Posts(db.Model):
     cover = db.Column(db.LargeBinary, nullable=True)
     text = db.Column(db.Text, nullable=False)
     time = db.Column(db.Integer, nullable=False, default=lambda: int(datetime.utcnow().timestamp()))
-    comments = db.relationship('Comments', back_populates='post', cascade="all, delete-orphan", passive_deletes=True)
+    comments = db.relationship('Comments', back_populates='post', cascade="all, delete", passive_deletes=True)
 
     def __repr__(self):
         return f"<Posts {self.id}, {self.title}>"
@@ -53,8 +53,8 @@ class Users(db.Model):
     comment_likes = db.relationship('CommentLikes', back_populates='user', cascade="all, delete-orphan", passive_deletes=True)
     game_stats = db.relationship('GameStats', back_populates='user', cascade="all, delete-orphan", passive_deletes=True)
     favorites = db.relationship('Favorites', back_populates='user', cascade="all, delete-orphan", passive_deletes=True)
-    tokens = db.relationship('Token', back_populates='user', cascade="all, delete", passive_deletes=True)
-
+    tokens = db.relationship('Token', back_populates='user', cascade="all, delete-orphan", passive_deletes=True)
+    receive_notifications = db.Column(db.Boolean, default=True)
     def __repr__(self):
         return f"<Users {self.id}, {self.login},{self.name}, {self.email}, {self.avatar}>"
 
@@ -106,6 +106,7 @@ class Games(db.Model):
 
     @staticmethod
     def clean_orphaned_records():
+        """Remove orphaned records in Favorites and GameStats that reference non-existent games."""
         try:
             favorites_deleted = Favorites.query.filter(~Favorites.game_id.in_(db.session.query(Games.id))).delete()
             stats_deleted = GameStats.query.filter(~GameStats.game_id.in_(db.session.query(Games.id))).delete()

@@ -61,6 +61,7 @@ class EditProfileForm(FlaskForm):
                                                Length(min=4, max=100, message="Пароль должен быть от 4 до 100 символов")])
     password_confirm = PasswordField("Повтор пароля: ", validators=[Optional(), EqualTo('password', message="Пароли не совпадают")])
     avatar = FileField('Новый аватар', validators=[FileAllowed(['gif','png','jpg','jpeg'], 'Разрешены только изображения GIF, PNG, или JPEG')])
+    receive_notifications = BooleanField('Получать уведомления о новых играх и постах')
     submit = SubmitField("Сохранить", render_kw={'class': 'btn btn-save' })
 
     def validate_name(self, field):
@@ -73,7 +74,6 @@ class EditProfileForm(FlaskForm):
             from flask_login import  current_user
             if Users.query.filter(Users.email == field.data, Users.id != current_user.get_id()).first():
                 raise ValidationError("Этот почта используется другим пользователем.")
-
 
 class ForgotPasswordForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
